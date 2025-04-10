@@ -5,9 +5,9 @@ A powerful iOS app that allows users to transform regular videos into Live Photo
 ## Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/d79fdb54-aef5-4e4f-b68f-6e5eee6769b3" width="300" alt="Video Editing Screen">
-  <img src="https://github.com/user-attachments/assets/8c49c62f-522a-4c04-a2e2-d1af478d393e" width="300" alt="Wallpaper Photo">
-   <img src="https://github.com/user-attachments/assets/1a4666c3-6550-4a9f-a73d-0b67a43d28e7" width="300" alt="Wallpaper Screen">
+  <img src="https://github.com/user-attachments/assets/d79fdb54-aef5-4e4f-b68f-6e5eee6769b3" width="100" alt="Video Editing Screen">
+  <img src="https://github.com/user-attachments/assets/8c49c62f-522a-4c04-a2e2-d1af478d393e" width="100" alt="Wallpaper Photo">
+   <img src="https://github.com/user-attachments/assets/1a4666c3-6550-4a9f-a73d-0b67a43d28e7" width="100" alt="Wallpaper Screen">
 </p>
 
 ## Features
