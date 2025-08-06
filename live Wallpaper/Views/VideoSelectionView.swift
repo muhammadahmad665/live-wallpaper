@@ -8,139 +8,79 @@
 import SwiftUI
 import PhotosUI
 
-/// View for selecting a video from the user's photo library
-/// Displays introductory information and a button to launch the PhotosPicker
+/**
+ View for selecting a video from the user's photo library.
+ 
+ This view serves as the initial interface when no video has been selected.
+ It provides an engaging introduction to the app's capabilities and guides
+ users through the video selection process using PhotosPicker integration.
+ 
+ ## Features
+ 
+ - **Hero Section**: Animated introduction with app branding
+ - **Features Overview**: Highlights of app capabilities
+ - **Video Selection**: Integrated PhotosPicker for video selection
+ - **User Guidance**: Clear instructions and visual cues
+ 
+ ## Architecture
+ 
+ The view is composed of modular components:
+ - `HeroSection`: Animated app introduction
+ - `FeaturesSection`: Feature highlights
+ - `CallToActionSection`: Video selection interface
+ 
+ ## Usage
+ 
+ ```swift
+ VideoSelectionView { selectedItem in
+     viewModel.selectedItem = selectedItem
+ }
+ ```
+ 
+ - Parameter onSelectVideo: Callback executed when user selects a video
+ - Important: The callback is triggered automatically when PhotosPicker selection changes
+ */
 struct VideoSelectionView: View {
-    /// Callback function to execute when a video is selected
+    
+    // MARK: - Properties
+    
+    /**
+     Callback function executed when a video is selected.
+     
+     This closure is called with the selected PhotosPickerItem when the user
+     chooses a video from their photo library. The parent view should use this
+     callback to initiate video loading and processing.
+     */
     let onSelectVideo: (PhotosPickerItem) -> Void
-    /// Currently selected item from the picker (if any)
+    
+    /**
+     Currently selected item from the PhotosPicker.
+     
+     This state variable tracks the user's selection and triggers the callback
+     when changed. It's managed internally by the view and bound to PhotosPicker.
+     */
     @State private var selectedItem: PhotosPickerItem?
-    @State private var isAnimating = false
+    
+    // MARK: - Body
     
     var body: some View {
         ScrollView {
             VStack(spacing: 30) {
-                // Hero section with animated icon
-                VStack(spacing: 20) {
-                    ZStack {
-                        // Background gradient circle
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.blue.opacity(0.1), .purple.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 160, height: 160)
-                            .scaleEffect(isAnimating ? 1.1 : 1.0)
-                            .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: isAnimating)
-                        
-                        // Main icon with gradient
-                        Image(systemName: "video.badge.waveform")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.blue, .purple],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .symbolEffect(.bounce, value: isAnimating)
-                    }
-                    
-                    // App title with style
-                    VStack(spacing: 8) {
-                        Text("Live Wallpaper Creator")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.primary, .secondary],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                        
-                        Text("Transform your videos into stunning Live Wallpapers")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .onAppear {
-                    isAnimating = true
-                }
+                // Animated hero section with app introduction
+                HeroSection()
                 
-                // Features section
-                VStack(spacing: 16) {
-                    FeatureRow(
-                        icon: "scissors",
-                        title: "Smart Trimming",
-                        description: "Easily trim your video to the perfect 5-second duration"
-                    )
-                    
-                    FeatureRow(
-                        icon: "speedometer",
-                        title: "Speed Control",
-                        description: "Adjust playback speed to pack more motion into your Live Wallpaper"
-                    )
-                    
-                    FeatureRow(
-                        icon: "viewfinder",
-                        title: "Aspect Ratio Analysis",
-                        description: "Get warnings and tips for optimal aspect ratios"
-                    )
-                    
-                    FeatureRow(
-                        icon: "wand.and.rays",
-                        title: "Auto Optimization",
-                        description: "Automatically optimized for Live Wallpaper format"
-                    )
-                }
-                .padding(.horizontal)
+                // App features overview
+                FeaturesSection()
+                    .padding(.horizontal)
                 
-                // Call to action
-                VStack(spacing: 16) {
-                    // PhotosPicker button with enhanced styling
-                    PhotosPicker(selection: $selectedItem,
-                                matching: .videos,
-                                photoLibrary: .shared()) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                            Text("Choose Your Video")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            LinearGradient(
-                                colors: [.blue, .blue.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                    }
-                    .scaleEffect(isAnimating ? 1.02 : 1.0)
-                    .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isAnimating)
-                    
-                    Text("Select a video from your photo library to get started")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal)
+                // Video selection call-to-action
+                CallToActionSection(selectedItem: $selectedItem)
+                    .padding(.horizontal)
             }
             .padding(.vertical)
         }
         .onChange(of: selectedItem) { _, newItem in
+            // Trigger callback when user selects a video
             if let newItem = newItem {
                 onSelectVideo(newItem)
             }
@@ -148,15 +88,49 @@ struct VideoSelectionView: View {
     }
 }
 
-// MARK: - Feature Row Component
+// MARK: - Supporting Components
+
+/**
+ A reusable component for displaying individual app features.
+ 
+ This component creates a consistent layout for feature descriptions throughout
+ the app. It combines an icon, title, and description in a horizontal layout
+ that's easy to scan and understand.
+ 
+ ## Design
+ 
+ - Circular icon container with app theme colors
+ - Clear hierarchy with bold titles and secondary descriptions
+ - Flexible text that adapts to different content lengths
+ 
+ ## Usage
+ 
+ ```swift
+ FeatureRow(
+     icon: "scissors",
+     title: "Smart Trimming", 
+     description: "Easily trim your video to the perfect duration"
+ )
+ ```
+ */
 struct FeatureRow: View {
+    
+    // MARK: - Properties
+    
+    /** SF Symbol name for the feature icon. */
     let icon: String
+    
+    /** Feature title displayed prominently. */
     let title: String
+    
+    /** Detailed description of the feature. */
     let description: String
+    
+    // MARK: - Body
     
     var body: some View {
         HStack(spacing: 16) {
-            // Icon container
+            // Icon container with circular background
             ZStack {
                 Circle()
                     .fill(.blue.opacity(0.1))
@@ -167,7 +141,7 @@ struct FeatureRow: View {
                     .foregroundColor(.blue)
             }
             
-            // Text content
+            // Text content with title and description
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)

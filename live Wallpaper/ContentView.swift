@@ -9,30 +9,76 @@ import SwiftUI
 import PhotosUI
 import AVKit
 
-/// Main content view for the app
-/// Coordinates between VideoSelectionView for choosing a video and VideoEditingView for editing it
+/**
+ Main content view for the Live Wallpaper Creator app.
+ 
+ This view serves as the primary container and coordinator for the entire application flow.
+ It manages the transition between video selection and video editing interfaces, handles
+ global app state, and provides navigation and alert functionality.
+ 
+ ## Overview
+ 
+ The `ContentView` follows a state-based architecture where it presents different interfaces
+ based on the current state of video selection:
+ - When no video is selected: Shows `VideoSelectionView`
+ - When a video is selected: Shows `VideoEditingView`
+ 
+ ## Key Responsibilities
+ 
+ - **State Management**: Manages the primary app state through `WallpaperViewModel`
+ - **Navigation**: Handles sheet presentations for video picker and tips
+ - **User Feedback**: Manages error and success alerts
+ - **Interface Coordination**: Orchestrates between selection and editing views
+ 
+ ## Usage
+ 
+ ```swift
+ ContentView()
+ ```
+ 
+ - Note: This view automatically creates and manages its own `WallpaperViewModel` instance.
+ - Important: The view uses `@StateObject` for the view model to ensure proper lifecycle management.
+ */
 struct ContentView: View {
-    /// ViewModel that manages the video selection and processing logic
+    
+    // MARK: - Properties
+    
+    /**
+     The view model that manages video selection, processing, and app state.
+     
+     This property uses `@StateObject` to ensure the view model is created once
+     and persists throughout the view's lifetime. It handles all business logic
+     including video loading, processing, and saving operations.
+     */
     @StateObject private var viewModel = WallpaperViewModel()
-    /// State variable to control showing the video picker sheet
+    
+    /**
+     Controls the presentation of the video picker sheet.
+     
+     When `true`, presents a sheet allowing users to select a different video
+     from their photo library. Used both for initial selection and changing videos.
+     */
     @State private var showVideoPicker: Bool = false
-    /// State variable to control showing the tips view
+    
+    /**
+     Controls the presentation of the tips and help sheet.
+     
+     When `true`, presents a sheet containing helpful tips and best practices
+     for creating effective Live Wallpapers.
+     */
     @State private var showTips: Bool = false
     
     // MARK: - Computed Properties
     
-    /// Background gradient for the main view
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemBackground),
-                Color(.systemBackground).opacity(0.8)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .ignoresSafeArea()
-    }
+    /**
+     The main content view that switches between video selection and editing interfaces.
+     
+     This computed property determines which interface to show based on whether
+     a video has been selected. It provides a clean separation between the two
+     main app states.
+     
+     - Returns: A view containing either the video selection or editing interface
+     */
     
     /// Main content based on current state
     private var mainContentView: some View {
@@ -45,14 +91,37 @@ struct ContentView: View {
         }
     }
     
-    /// Video selection interface
+    /**
+     The video selection interface component.
+     
+     This computed property provides a clean interface for video selection
+     that handles the callback when a user selects a video from their library.
+     
+     - Returns: A `VideoSelectionView` configured with the appropriate callback
+     */
     private var videoSelectionInterface: some View {
         VideoSelectionView(onSelectVideo: { item in
             viewModel.selectedItem = item
         })
     }
     
-    /// Video editing interface for selected video
+    /**
+     Creates the video editing interface for a selected video.
+     
+     This method constructs the complete video editing interface with all necessary
+     bindings and callbacks. It handles the complex coordination between video
+     editing components and the view model.
+     
+     - Parameter selectedVideoURL: The URL of the selected video to edit
+     - Returns: A view containing the complete video editing interface
+     
+     ## Key Features
+     
+     - Video trimming and preview
+     - Speed control
+     - Processing and saving functionality
+     - Integrated action handling
+     */
     private func videoEditingInterface(for selectedVideoURL: URL) -> some View {
         VStack(spacing: 0) {
             VideoEditingView(
@@ -80,40 +149,41 @@ struct ContentView: View {
                 }
             )
             
-            bottomActionBar
+            BottomActionBar(showVideoPicker: $showVideoPicker)
         }
     }
     
-    /// Bottom action bar
-    private var bottomActionBar: some View {
-        VStack(spacing: 12) {
-            Divider()
-            
-            Button("Choose Different Video") {
-                showVideoPicker = true
-            }
-            .font(.subheadline)
-            .foregroundColor(.blue)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
-            .background(.blue.opacity(0.1))
-            .clipShape(Capsule())
-        }
-        .padding()
-        .background(.regularMaterial)
-    }
     
+    // MARK: - Body
+    
+    /**
+     The main body of the content view.
+     
+     Constructs the complete user interface including navigation, background,
+     content areas, alerts, and sheet presentations. Uses a `NavigationStack`
+     as the root container to provide navigation context.
+     
+     ## Interface Elements
+     
+     - **Background**: Custom gradient background
+     - **Main Content**: State-dependent content (selection or editing)
+     - **Navigation**: Toolbar with menu options
+     - **Alerts**: Error and success feedback
+     - **Sheets**: Video picker and tips presentations
+     
+     - Returns: The complete user interface view hierarchy
+     */
     var body: some View {
         NavigationStack {
             ZStack {
-                backgroundGradient
+                BackgroundGradient()
                 mainContentView
             }
             .navigationTitle("Live Wallpaper Creator")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    navigationMenu
+                    NavigationMenu(showTips: $showTips)
                 }
             }
             .onChange(of: viewModel.selectedItem) { _, newItem in
@@ -123,91 +193,37 @@ struct ContentView: View {
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.errorMessage = nil } }
             )) {
-                errorAlertButtons
+                ErrorAlertButtons(
+                    showVideoPicker: $showVideoPicker,
+                    onDismiss: { viewModel.errorMessage = nil }
+                )
             } message: {
-                errorAlertMessage
+                ErrorAlertMessage(errorMessage: viewModel.errorMessage)
             }
             .alert("🎉 Success!", isPresented: $viewModel.showSuccessMessage) {
-                successAlertButtons
+                SuccessAlertButtons(
+                    showVideoPicker: $showVideoPicker,
+                    onReset: { viewModel.resetVideo() }
+                )
             } message: {
-                successAlertMessage
+                SuccessAlertMessage()
             }
             .overlay {
                 loadingOverlay
             }
         }
         .sheet(isPresented: $showVideoPicker) {
-            videoPickerSheet
+            VideoPickerSheet(
+                showVideoPicker: $showVideoPicker,
+                onSelectVideo: { item in viewModel.selectedItem = item },
+                onReset: { viewModel.resetVideo() }
+            )
         }
         .sheet(isPresented: $showTips) {
             TipsView()
         }
     }
     
-    // MARK: - Navigation Components
-    
-    /// Navigation menu in toolbar
-    private var navigationMenu: some View {
-        Menu {
-            Button(action: {
-                showTips = true
-            }) {
-                Label("Tips & Tricks", systemImage: "lightbulb")
-            }
-            
-            Button(action: {
-                // Show about
-            }) {
-                Label("About", systemImage: "info.circle")
-            }
-        } label: {
-            Image(systemName: "ellipsis.circle")
-                .foregroundColor(.blue)
-        }
-    }
-    
-    // MARK: - Alert Components
-    
-    /// Error alert buttons
-    private var errorAlertButtons: some View {
-        Group {
-            Button("Try Again") { viewModel.errorMessage = nil }
-            Button("Choose Different Video") { 
-                viewModel.errorMessage = nil
-                showVideoPicker = true
-            }
-        }
-    }
-    
-    /// Error alert message
-    private var errorAlertMessage: some View {
-        Group {
-            if let errorMessage = viewModel.errorMessage {
-                Text(errorMessage)
-            }
-        }
-    }
-    
-    /// Success alert buttons
-    private var successAlertButtons: some View {
-        Group {
-            Button("Set as Wallpaper") { 
-                if let settingsUrl = URL(string: "App-Prefs:Wallpaper") {
-                    UIApplication.shared.open(settingsUrl)
-                }
-            }
-            Button("Create Another") { 
-                viewModel.resetVideo()
-                showVideoPicker = true
-            }
-            Button("Done") { }
-        }
-    }
-    
-    /// Success alert message
-    private var successAlertMessage: some View {
-        Text("Your Live Wallpaper has been saved to Photos!\n\nTo set it as your wallpaper:\n• Go to Settings > Wallpaper\n• Choose your new Live Photo\n• Set it as Lock Screen")
-    }
     
     /// Loading overlay
     private var loadingOverlay: some View {
@@ -219,35 +235,29 @@ struct ContentView: View {
         }
     }
     
-    /// Video picker sheet
-    private var videoPickerSheet: some View {
-        NavigationView {
-            VideoSelectionView(onSelectVideo: { item in
-                viewModel.resetVideo()
-                viewModel.selectedItem = item
-                showVideoPicker = false
-            })
-            .navigationTitle("Choose Video")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        showVideoPicker = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
-    }
     
     // MARK: - Helper Methods
     
-    /// Handles video selection from PhotosPicker
+    /**
+     Handles the selection of a new video item from the PhotosPicker.
+     
+     This method processes the video selection, provides haptic feedback,
+     resets any existing video state, and initiates the loading of the new video.
+     It's called automatically when the `selectedItem` in the view model changes.
+     
+     - Parameter newItem: The newly selected `PhotosPickerItem`, or `nil` if selection was cleared
+     
+     ## Behavior
+     
+     - Provides haptic feedback on successful selection
+     - Resets existing video state before loading new video
+     - Initiates video loading process through the view model
+     - Gracefully handles `nil` selections
+     */
     private func handleVideoSelection(_ newItem: PhotosPickerItem?) {
         guard let newItem else { return }
         
-        // Haptic feedback for successful selection
+        // Provide haptic feedback for successful selection
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
         

@@ -8,28 +8,82 @@
 import SwiftUI
 import AVKit
 
-/// View for trimming and previewing a selected video
-/// Refactored to use modular components for better maintainability
+/**
+ View for trimming and previewing a selected video for Live Wallpaper creation.
+ 
+ This view provides a comprehensive video editing interface that allows users to
+ trim video segments, adjust playback speed, and preview their selections in
+ real-time. The interface is built using modular components for maintainability
+ and follows iOS design patterns for video editing applications.
+ 
+ ## Features
+ 
+ - **Real-time Video Preview**: Live preview with AVPlayer integration
+ - **Precision Trimming**: Frame-accurate video segment selection
+ - **Speed Control**: Dynamic speed adjustment from 1x to 2.5x
+ - **Aspect Ratio Analysis**: Automatic detection and warnings for optimal ratios
+ - **Interactive Timeline**: Visual timeline with drag-to-select functionality
+ 
+ ## Component Architecture
+ 
+ The view is composed of specialized components:
+ - `VideoPlayerComponent`: Video playback and preview
+ - `VideoTrimmingComponent`: Timeline and selection controls
+ - `SpeedControlComponent`: Speed adjustment interface
+ - `VideoProcessingActions`: Processing and save actions
+ 
+ ## Usage
+ 
+ ```swift
+ VideoEditingView(
+     videoURL: selectedVideoURL,
+     startTime: $startTime,
+     endTime: $endTime,
+     speedMultiplier: $speedMultiplier,
+     videoDuration: duration,
+     isProcessing: false,
+     trimmedVideoURL: nil,
+     onProcessVideo: { /* process */ },
+     onSaveVideo: { /* save */ },
+     onCreateLiveWallpaper: { /* create */ }
+ )
+ ```
+ 
+ - Important: Requires valid video URL and proper binding management
+ - Note: Automatically manages AVPlayer lifecycle and memory cleanup
+ */
 struct VideoEditingView: View {
-    /// URL of the video to be edited
+    
+    // MARK: - Properties
+    
+    /** URL of the video file to be edited. */
     let videoURL: URL
-    /// Binding to the start time for trimming (in seconds)
+    
+    /** Binding to the start time for video trimming (in seconds). */
     @Binding var startTime: Double
-    /// Binding to the end time for trimming (in seconds)
+    
+    /** Binding to the end time for video trimming (in seconds). */
     @Binding var endTime: Double
-    /// Binding to the speed multiplier for the video
+    
+    /** Binding to the speed multiplier for video playback adjustment. */
     @Binding var speedMultiplier: Double
-    /// Total duration of the video in seconds
+    
+    /** Total duration of the source video in seconds. */
     let videoDuration: Double
-    /// Flag indicating if processing is in progress
+    
+    /** Flag indicating whether video processing is currently in progress. */
     let isProcessing: Bool
-    /// URL of the trimmed video if available
+    
+    /** URL of the processed (trimmed) video if available. */
     let trimmedVideoURL: URL?
-    /// Action to execute when the "Process Video" button is tapped
+    
+    /** Closure called when the "Process Video" action is triggered. */
     let onProcessVideo: () -> Void
-    /// Action to execute when the "Save as Wallpaper" button is tapped
+    
+    /** Closure called when the "Save as Wallpaper" action is triggered. */
     let onSaveVideo: () -> Void
-    /// Action to execute when the "Create Live Wallpaper" button is tapped
+    
+    /** Closure called when the "Create Live Wallpaper" action is triggered. */
     let onCreateLiveWallpaper: () -> Void
     
     /// AVPlayer instance for video playback
