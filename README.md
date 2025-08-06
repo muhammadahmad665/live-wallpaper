@@ -8,6 +8,9 @@ A sophisticated iOS application that transforms ordinary videos into stunning Li
   <img src="https://github.com/user-attachments/assets/d79fdb54-aef5-4e4f-b68f-6e5eee6769b3" width="200" alt="Video Editing Screen">
   <img src="https://github.com/user-attachments/assets/8c49c62f-522a-4c04-a2e2-d1af478d393e" width="200" alt="Wallpaper Photo">
    <img src="https://github.com/user-attachments/assets/1a4666c3-6550-4a9f-a73d-0b67a43d28e7" width="200" alt="Wallpaper Screen">
+
+  <video src="https://github.com/user-attachments/assets/4278a7cd-3149-44ad-a07a-8748a2aaca7e.mp4" controls width="600"></video>
+
 </p>
 
 ## ✨ Features
@@ -357,34 +360,6 @@ This project is available under the **MIT License**, which provides maximum flex
 ### Requirements
 - **License Notice**: Include the original license and copyright notice
 - **Copyright Notice**: Preserve copyright information
-
-### Limitations
-- ❌ **Liability**: No warranty or liability provided
-- ❌ **Trademark**: No trademark rights granted
-
-```
-MIT License
-
-Copyright (c) 2025 Ahmad
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
 
 See the [LICENSE](LICENSE) file for the complete legal text.
 
