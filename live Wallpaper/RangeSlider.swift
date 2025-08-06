@@ -51,63 +51,133 @@ struct RangeSlider: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                // Background track
+                // Background track with improved styling
                 Rectangle()
-                    .foregroundColor(.gray.opacity(0.3))
-                    .frame(height: 4)
-                    .cornerRadius(2)
+                    .foregroundColor(.gray.opacity(0.2))
+                    .frame(height: 6)
+                    .cornerRadius(3)
                 
-                // Selected range indicator
+                // Selected range indicator with gradient
                 Rectangle()
-                    .foregroundColor(.blue)
+                    .fill(
+                        LinearGradient(
+                            colors: [.blue, .blue.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
                     .frame(
                         width: max(0, CGFloat((upperValue - lowerValue) / (maximumValue - minimumValue)) * geometry.size.width),
-                        height: 4
+                        height: 6
                     )
                     .offset(x: max(0, CGFloat((lowerValue - minimumValue) / (maximumValue - minimumValue)) * geometry.size.width))
-                    .cornerRadius(2)
+                    .cornerRadius(3)
+                    .shadow(color: .blue.opacity(0.3), radius: 2, x: 0, y: 1)
                 
-                // Lower bound thumb control
-                Circle()
-                    .foregroundColor(.white)
-                    .shadow(radius: 2)
-                    .frame(width: thumbSize, height: thumbSize)
-                    .offset(x: CGFloat((lowerValue - minimumValue) / (maximumValue - minimumValue)) * geometry.size.width - thumbSize/2)
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                withAnimation(.spring()) {
-                                    touchingLowerThumb = true
-                                    updateLowerValue(for: value, in: geometry)
-                                }
+                // Lower bound thumb control with enhanced styling
+                ZStack {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: thumbSize, height: thumbSize)
+                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    
+                    Circle()
+                        .stroke(.blue, lineWidth: 3)
+                        .frame(width: thumbSize - 2, height: thumbSize - 2)
+                        .scaleEffect(touchingLowerThumb ? 1.2 : 1.0)
+                    
+                    // Value indicator
+                    if touchingLowerThumb {
+                        Text(TimeFormatter.formatTime(lowerValue))
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .offset(y: -40)
+                    }
+                }
+                .offset(x: CGFloat((lowerValue - minimumValue) / (maximumValue - minimumValue)) * geometry.size.width - thumbSize/2)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                touchingLowerThumb = true
+                                updateLowerValue(for: value, in: geometry)
                             }
-                            .onEnded { _ in
-                                withAnimation(.spring()) { touchingLowerThumb = false }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { 
+                                touchingLowerThumb = false 
                             }
-                    )
+                        }
+                )
                 
-                // Upper bound thumb control
-                Circle()
-                    .foregroundColor(.white)
-                    .shadow(radius: 2)
-                    .frame(width: thumbSize, height: thumbSize)
-                    .offset(x: CGFloat((upperValue - minimumValue) / (maximumValue - minimumValue)) * geometry.size.width - thumbSize/2)
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                withAnimation(.spring()) {
-                                    touchingUpperThumb = true
-                                    updateUpperValue(for: value, in: geometry)
-                                }
+                // Upper bound thumb control with enhanced styling
+                ZStack {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: thumbSize, height: thumbSize)
+                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    
+                    Circle()
+                        .stroke(.blue, lineWidth: 3)
+                        .frame(width: thumbSize - 2, height: thumbSize - 2)
+                        .scaleEffect(touchingUpperThumb ? 1.2 : 1.0)
+                    
+                    // Value indicator
+                    if touchingUpperThumb {
+                        Text(TimeFormatter.formatTime(upperValue))
+                            .font(.caption2)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .offset(y: -40)
+                    }
+                }
+                .offset(x: CGFloat((upperValue - minimumValue) / (maximumValue - minimumValue)) * geometry.size.width - thumbSize/2)
+                .gesture(
+                    DragGesture()
+                        .onChanged { value in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                touchingUpperThumb = true
+                                updateUpperValue(for: value, in: geometry)
                             }
-                            .onEnded { _ in
-                                withAnimation(.spring()) { touchingUpperThumb = false }
+                        }
+                        .onEnded { _ in
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { 
+                                touchingUpperThumb = false 
                             }
-                    )
+                        }
+                )
+                
+                // Range limit indicator (5-second max)
+                if (upperValue - lowerValue) >= maxRange * 0.9 {
+                    HStack {
+                        Spacer()
+                        Text("Max duration reached")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.orange.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .offset(y: 30)
+                        Spacer()
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
             }
             .frame(maxHeight: .infinity)
         }
-        .frame(height: thumbSize)
+        .frame(height: thumbSize + 20) // Add extra space for indicators
     }
     
     /// Updates the lower value during a drag gesture while respecting constraints

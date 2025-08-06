@@ -7,42 +7,47 @@
 
 import SwiftUI
 
-/// A fullscreen overlay with a progress indicator and message
-/// Used to indicate that a long-running operation is in progress
+/// A simple fullscreen loading overlay
 struct LoadingOverlay: View {
-    /// Message to display to the user about the current operation
     let message: String
+    @State private var isAnimating = false
     
     var body: some View {
         ZStack {
-            // Semi-transparent background to dim the content behind
+            // Semi-transparent background
             Color.black.opacity(0.6)
             
-            // Content container with progress indicator and messages
-            VStack(spacing: 15) {
-                // Spinning progress indicator
+            // Simple content container
+            VStack(spacing: 24) {
+                // Simple spinning indicator
                 ProgressView()
-                    .scaleEffect(1.8)
-                    .tint(.white)
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
                 
-                // Primary message explaining the current operation
+                // Main message
                 Text(message)
-                    .font(.headline)
+                    .font(.title3)
+                    .fontWeight(.semibold)
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 32)
                 
-                // Secondary message indicating operation may take time
-                Text("This may take a moment...")
+                // Simple secondary message
+                Text("Please wait...")
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.8))
             }
-            .padding(25)
+            .padding(40)
             .background(
-                RoundedRectangle(cornerRadius: 15)
-                    .fill(Color.black.opacity(0.7))
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.black.opacity(0.8))
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
             )
+            .shadow(color: .black.opacity(0.3), radius: 15)
         }
-        .ignoresSafeArea()
+                .ignoresSafeArea()
+        .onAppear {
+            isAnimating = true
+        }
     }
 }
