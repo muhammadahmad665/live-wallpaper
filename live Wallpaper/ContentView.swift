@@ -16,80 +16,275 @@ struct ContentView: View {
     @StateObject private var viewModel = WallpaperViewModel()
     /// State variable to control showing the video picker sheet
     @State private var showVideoPicker: Bool = false
+    /// State variable to control showing the tips view
+    @State private var showTips: Bool = false
+    
+    // MARK: - Computed Properties
+    
+    /// Background gradient for the main view
+    private var backgroundGradient: some View {
+        LinearGradient(
+            colors: [
+                Color(.systemBackground),
+                Color(.systemBackground).opacity(0.8)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+    }
+    
+    /// Main content based on current state
+    private var mainContentView: some View {
+        VStack(spacing: 0) {
+            if let selectedVideoURL = viewModel.selectedVideoURL {
+                videoEditingInterface(for: selectedVideoURL)
+            } else {
+                videoSelectionInterface
+            }
+        }
+    }
+    
+    /// Video selection interface
+    private var videoSelectionInterface: some View {
+        VideoSelectionView(onSelectVideo: { item in
+            viewModel.selectedItem = item
+        })
+    }
+    
+    /// Video editing interface for selected video
+    private func videoEditingInterface(for selectedVideoURL: URL) -> some View {
+        VStack(spacing: 0) {
+            progressIndicator
+            
+            VideoEditingView(
+                videoURL: selectedVideoURL,
+                startTime: $viewModel.startTime,
+                endTime: $viewModel.endTime,
+                speedMultiplier: $viewModel.speedMultiplier,
+                videoDuration: viewModel.videoDuration,
+                isProcessing: viewModel.isProcessing,
+                trimmedVideoURL: viewModel.trimmedVideoURL,
+                onProcessVideo: viewModel.processVideo,
+                onSaveVideo: viewModel.saveToPhotoLibrary,
+                onCreateLiveWallpaper: {
+                    // Unified action that handles both processing and saving
+                    if viewModel.trimmedVideoURL != nil {
+                        viewModel.saveToPhotoLibrary()
+                    } else {
+                        viewModel.processVideo()
+                    }
+                }
+            )
+            
+            bottomActionBar
+        }
+    }
+    
+    /// Progress indicator showing workflow steps
+    private var progressIndicator: some View {
+        HStack {
+            progressStep(title: "Video Selected", isCompleted: true)
+            progressConnector
+            progressStep(title: "Processed", isCompleted: viewModel.trimmedVideoURL != nil)
+            progressConnector
+            progressStep(title: "Saved", isCompleted: viewModel.showSuccessMessage)
+            Spacer()
+        }
+        .padding(.horizontal)
+        .padding(.bottom)
+    }
+    
+    /// Individual progress step
+    private func progressStep(title: String, isCompleted: Bool) -> some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(isCompleted ? Color.green : Color.gray.opacity(0.3))
+                .frame(width: 8, height: 8)
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    /// Progress connector line
+    private var progressConnector: some View {
+        Rectangle()
+            .fill(.gray.opacity(0.3))
+            .frame(height: 1)
+            .frame(maxWidth: 40)
+    }
+    
+    /// Bottom action bar
+    private var bottomActionBar: some View {
+        VStack(spacing: 12) {
+            Divider()
+            
+            Button("Choose Different Video") {
+                showVideoPicker = true
+            }
+            .font(.subheadline)
+            .foregroundColor(.blue)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(.blue.opacity(0.1))
+            .clipShape(Capsule())
+        }
+        .padding()
+        .background(.regularMaterial)
+    }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                if let selectedVideoURL = viewModel.selectedVideoURL {
-                    // Show video editing interface when a video is selected
-                    VideoEditingView(
-                        videoURL: selectedVideoURL,
-                        startTime: $viewModel.startTime,
-                        endTime: $viewModel.endTime,
-                        videoDuration: viewModel.videoDuration,
-                        isProcessing: viewModel.isProcessing,
-                        trimmedVideoURL: viewModel.trimmedVideoURL,
-                        onProcessVideo: viewModel.processVideo,
-                        onSaveVideo: viewModel.saveToPhotoLibrary
-                    )
-                    
-                    // Button to replace the current video with a new selection
-                    Button("Replace Video") {
-                        showVideoPicker = true
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.orange)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                } else {
-                    // Show video selection screen when no video is selected
-                    VideoSelectionView(onSelectVideo: { item in
-                        viewModel.selectedItem = item
-                    })
+            ZStack {
+                backgroundGradient
+                mainContentView
+            }
+            .navigationTitle("Live Wallpaper Creator")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    navigationMenu
                 }
             }
-            .padding()
-            .navigationTitle("Live Wallpaper Creator")
-            // Handle PhotosPickerItem selection
             .onChange(of: viewModel.selectedItem) { _, newItem in
-                guard let newItem else { return }
-                // Reset existing state before loading a new video
-                viewModel.resetVideo()
-                viewModel.loadVideo(from: newItem)
+                handleVideoSelection(newItem)
             }
-            // Error alert for displaying issues
-            .alert("Error", isPresented: .init(
+            .alert("Something went wrong", isPresented: .init(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.errorMessage = nil } }
             )) {
-                Button("OK") { viewModel.errorMessage = nil }
+                errorAlertButtons
             } message: {
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                }
+                errorAlertMessage
             }
-            // Success alert for when wallpaper is created
-            .alert("Wallpaper Saved", isPresented: $viewModel.showSuccessMessage) {
-                Button("OK") { }
+            .alert("🎉 Success!", isPresented: $viewModel.showSuccessMessage) {
+                successAlertButtons
             } message: {
-                Text("Your video has been saved to Photos and can be used as a Live Wallpaper.\n\nTo set it up:\n\n1. Go to Settings > Wallpaper > Choose New Wallpaper\n2. Tap on \"All Photos\" or \"Recents\"\n3. Find your video (it will be the most recent one)\n4. Set it as your Lock Screen\n\nTip: Videos between 3-5 seconds work best as Live Wallpapers.")
+                successAlertMessage
             }
-            // Loading overlay shown during processing
             .overlay {
-                if viewModel.isProcessing {
-                    LoadingOverlay(message: "Converting your video to Live Wallpaper format")
-                }
+                loadingOverlay
             }
         }
-        // Present video picker sheet when replacing a video
         .sheet(isPresented: $showVideoPicker) {
+            videoPickerSheet
+        }
+        .sheet(isPresented: $showTips) {
+            TipsView()
+        }
+    }
+    
+    // MARK: - Navigation Components
+    
+    /// Navigation menu in toolbar
+    private var navigationMenu: some View {
+        Menu {
+            Button(action: {
+                showTips = true
+            }) {
+                Label("Tips & Tricks", systemImage: "lightbulb")
+            }
+            
+            Button(action: {
+                // Show about
+            }) {
+                Label("About", systemImage: "info.circle")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .foregroundColor(.blue)
+        }
+    }
+    
+    // MARK: - Alert Components
+    
+    /// Error alert buttons
+    private var errorAlertButtons: some View {
+        Group {
+            Button("Try Again") { viewModel.errorMessage = nil }
+            Button("Choose Different Video") { 
+                viewModel.errorMessage = nil
+                showVideoPicker = true
+            }
+        }
+    }
+    
+    /// Error alert message
+    private var errorAlertMessage: some View {
+        Group {
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+            }
+        }
+    }
+    
+    /// Success alert buttons
+    private var successAlertButtons: some View {
+        Group {
+            Button("Set as Wallpaper") { 
+                if let settingsUrl = URL(string: "App-Prefs:Wallpaper") {
+                    UIApplication.shared.open(settingsUrl)
+                }
+            }
+            Button("Create Another") { 
+                viewModel.resetVideo()
+                showVideoPicker = true
+            }
+            Button("Done") { }
+        }
+    }
+    
+    /// Success alert message
+    private var successAlertMessage: some View {
+        Text("Your Live Wallpaper has been saved to Photos!\n\nTo set it as your wallpaper:\n• Go to Settings > Wallpaper\n• Choose your new Live Photo\n• Set it as Lock Screen")
+    }
+    
+    /// Loading overlay
+    private var loadingOverlay: some View {
+        Group {
+            if viewModel.isProcessing {
+                LoadingOverlay(message: "Creating your Live Wallpaper")
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+    }
+    
+    /// Video picker sheet
+    private var videoPickerSheet: some View {
+        NavigationView {
             VideoSelectionView(onSelectVideo: { item in
                 viewModel.resetVideo()
                 viewModel.selectedItem = item
                 showVideoPicker = false
             })
+            .navigationTitle("Choose Video")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        showVideoPicker = false
+                    }
+                }
+            }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+    
+    // MARK: - Helper Methods
+    
+    /// Handles video selection from PhotosPicker
+    private func handleVideoSelection(_ newItem: PhotosPickerItem?) {
+        guard let newItem else { return }
+        
+        // Haptic feedback for successful selection
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+        
+        // Reset existing state before loading a new video
+        viewModel.resetVideo()
+        viewModel.loadVideo(from: newItem)
     }
 }
 

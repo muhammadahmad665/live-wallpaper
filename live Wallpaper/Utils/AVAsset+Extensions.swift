@@ -1,5 +1,7 @@
 import AVKit
 import UIKit
+import ImageIO
+import UniformTypeIdentifiers
 
 /// Extensions to AVAsset for Live Photo creation functionality
 extension AVAsset {
@@ -96,5 +98,33 @@ extension AVAsset {
             print("Image generation failed: \(error)")
             return nil
         }
+    }
+}
+
+/// Extensions to UIImage for Live Photo creation functionality
+extension UIImage {
+    /// Converts the image to HEIC format data
+    /// - Parameter compressionQuality: Quality of the HEIC compression (0.0 to 1.0, default 0.8)
+    /// - Returns: Data in HEIC format, or nil if conversion fails
+    @available(iOS 11.0, *)
+    func heicData(compressionQuality: CGFloat = 0.8) -> Data? {
+        guard let cgImage = self.cgImage else { return nil }
+        
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, UTType.heic.identifier as CFString, 1, nil) else {
+            return nil
+        }
+        
+        let options: [CFString: Any] = [
+            kCGImageDestinationLossyCompressionQuality: compressionQuality
+        ]
+        
+        CGImageDestinationAddImage(destination, cgImage, options as CFDictionary)
+        
+        guard CGImageDestinationFinalize(destination) else {
+            return nil
+        }
+        
+        return data as Data
     }
 }

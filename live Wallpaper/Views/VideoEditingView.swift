@@ -9,7 +9,7 @@ import SwiftUI
 import AVKit
 
 /// View for trimming and previewing a selected video
-/// Allows users to select a specific portion of a video to use as a Live Wallpaper
+/// Refactored to use modular components for better maintainability
 struct VideoEditingView: View {
     /// URL of the video to be edited
     let videoURL: URL
@@ -17,6 +17,8 @@ struct VideoEditingView: View {
     @Binding var startTime: Double
     /// Binding to the end time for trimming (in seconds)
     @Binding var endTime: Double
+    /// Binding to the speed multiplier for the video
+    @Binding var speedMultiplier: Double
     /// Total duration of the video in seconds
     let videoDuration: Double
     /// Flag indicating if processing is in progress
@@ -27,95 +29,165 @@ struct VideoEditingView: View {
     let onProcessVideo: () -> Void
     /// Action to execute when the "Save as Wallpaper" button is tapped
     let onSaveVideo: () -> Void
+    /// Action to execute when the "Create Live Wallpaper" button is tapped
+    let onCreateLiveWallpaper: () -> Void
     
     /// AVPlayer instance for video playback
     @State private var player: AVPlayer?
     /// Token for time observation to track playback progress
     @State private var timeObserverToken: Any?
+    /// Video aspect ratio
+    @State private var aspectRatio: CGFloat = 16/9
+    /// Video resolution
+    @State private var videoResolution: CGSize = .zero
+    /// Optimal aspect ratio warning
+    @State private var showAspectRatioWarning: Bool = false
+    /// Alert state
+    @State private var showAlert: Bool = false
+    @State private var alertMessage: String = ""
+    
+    /// Computed property to check if processing can be performed
+    private var canProcess: Bool {
+        let duration = endTime - startTime
+        let finalDuration = duration / speedMultiplier
+        return duration > 0 && finalDuration <= 5.0
+    }
     
     var body: some View {
-        VStack(spacing: 16) {
-            // Use the stored player instead of creating a new one each time
-            VideoPlayer(player: player ?? AVPlayer(url: videoURL))
-                .frame(height: 300)
-                .cornerRadius(12)
-                .onAppear {
-                    setupPlayer()
-                }
-            
-            VStack(spacing: 8) {
-                Text("Trim Video (Max 5 seconds)")
-                    .font(.headline)
-                
-                HStack {
-                    Text(TimeFormatter.formatTime(startTime))
-                    Spacer()
-                    Text(TimeFormatter.formatTime(endTime))
-                }
-                
-                RangeSlider(
-                    lowerValue: $startTime,
-                    upperValue: $endTime,
-                    minimumValue: 0,
-                    maximumValue: min(videoDuration, 15),
-                    step: 0.1,
-                    maxRange: 5.0
-                )
-                .frame(height: 40)
-                .onChange(of: startTime) { _, _ in
-                    seekToStartTime()
-                }
-                .onChange(of: endTime) { _, _ in
-                    // Optionally, you could also update end time in some way
-                }
-                
-                Text("Duration: \(TimeFormatter.formatTime(endTime - startTime))")
-                    .font(.subheadline)
-                    .foregroundColor(.primary) // Always primary color since we enforce 5sec max
-                
-                Button("Play Selection") {
-                    playSelection()
-                }
-                .padding(.vertical, 8)
-            }
-            .padding(.vertical)
-            
-            Button(action: onProcessVideo) {
-                HStack {
-                    Image(systemName: "scissors")
-                    Text("Process Video")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-            }
-            .disabled(isProcessing)
-            .padding(.horizontal)
-            
-            if let _ = trimmedVideoURL {
-                Button(action: onSaveVideo) {
-                    HStack {
-                        Image(systemName: "square.and.arrow.down")
-                        Text("Save as Wallpaper")
+        ScrollView {
+            VStack(spacing: 20) {
+                // Video Player Component
+                VideoPlayerComponent(
+                    videoURL: videoURL,
+                    player: player,
+                    showAspectRatioWarning: showAspectRatioWarning,
+                    aspectRatio: aspectRatio,
+                    videoResolution: videoResolution,
+                    onPlaySelection: playSelection,
+                    onSeekToStart: seekToStartTime,
+                    onShowAspectRatioWarning: { 
+                        withAnimation(.spring()) {
+                            showAspectRatioWarning = true 
+                        }
+                    },
+                    onDismissAspectRatioWarning: { 
+                        withAnimation(.spring()) {
+                            showAspectRatioWarning = false 
+                        }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
+                )
+                
+                // Video Trimming Component
+                VideoTrimmingComponent(
+                    startTime: $startTime,
+                    endTime: $endTime,
+                    speedMultiplier: $speedMultiplier,
+                    videoDuration: videoDuration,
+                    onStartTimeChange: { seekToStartTime() },
+                    onEndTimeChange: {
+                        // Update preview if player is playing
+                        if player?.timeControlStatus == .playing {
+                            playSelection()
+                        }
+                    },
+                    onSpeedMultiplierChange: {
+                        // Update player rate in real-time and refresh preview when speed changes
+                        updatePlayerRate()
+                        if player?.timeControlStatus == .playing {
+                            playSelection()
+                        }
+                    }
+                )
+                
+                // Speed Control Component
+                SpeedControlComponent(
+                    speedMultiplier: $speedMultiplier,
+                    startTime: startTime,
+                    endTime: endTime,
+                    onSpeedChange: { _ in
+                        // Update player rate in real-time and refresh preview
+                        updatePlayerRate()
+                        if player?.timeControlStatus == .playing {
+                            playSelection()
+                        }
+                    }
+                )
+                
+                // Video Processing Actions Component
+                VideoProcessingActions(
+                    speedMultiplier: $speedMultiplier,
+                    isProcessing: .constant(isProcessing),
+                    showAlert: $showAlert,
+                    alertMessage: $alertMessage,
+                    asset: AVAsset(url: videoURL),
+                    startTime: startTime,
+                    endTime: endTime,
+                    canProcess: canProcess,
+                    onCreateWallpaper: onCreateLiveWallpaper,
+                    onPreview: playSelection
+                )
             }
+            .padding()
+        }
+        .onAppear {
+            setupPlayer()
+            analyzeVideoProperties()
         }
     }
+    
+    // MARK: - Private Methods
     
     /// Sets up the AVPlayer with the current video URL
     private func setupPlayer() {
         let player = AVPlayer(url: videoURL)
         self.player = player
         seekToStartTime()
+    }
+    
+    /// Analyzes video properties like aspect ratio and resolution
+    private func analyzeVideoProperties() {
+        let asset = AVAsset(url: videoURL)
+        
+        Task {
+            do {
+                guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else { return }
+                let naturalSize = try await videoTrack.load(.naturalSize)
+                let transform = try await videoTrack.load(.preferredTransform)
+                
+                // Calculate actual display size considering transform
+                let size = naturalSize.applying(transform)
+                let actualSize = CGSize(width: abs(size.width), height: abs(size.height))
+                
+                await MainActor.run {
+                    self.videoResolution = actualSize
+                    self.aspectRatio = actualSize.width / actualSize.height
+                    
+                    // Check if aspect ratio is not ideal for Live Wallpapers
+                    let isPortrait = actualSize.height > actualSize.width
+                    let idealRatio: CGFloat = 9.0/16.0 // Portrait ratio for phones
+                    let currentRatio = isPortrait ? actualSize.width / actualSize.height : actualSize.height / actualSize.width
+                    
+                    // Show warning if not close to ideal mobile aspect ratio
+                    if abs(currentRatio - idealRatio) > 0.2 {
+                        withAnimation(.spring()) {
+                            showAspectRatioWarning = true
+                        }
+                    }
+                }
+            } catch {
+                print("Error analyzing video: \(error)")
+            }
+        }
+    }
+    
+    /// Updates the player playback rate based on selected speed multiplier
+    private func updatePlayerRate() {
+        guard let player = player else { return }
+        
+        // Only update rate if the player is currently playing
+        if player.timeControlStatus == .playing {
+            player.rate = Float(speedMultiplier)
+        }
     }
     
     /// Seeks the player to the current start time position
@@ -139,8 +211,8 @@ struct VideoEditingView: View {
         let startCMTime = CMTime(seconds: startTime, preferredTimescale: 600)
         player.seek(to: startCMTime, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
             if finished {
-                // Start playback
-                player.play()
+                // Start playback with selected speed
+                player.rate = Float(self.speedMultiplier)
                 
                 // Set up a new observer
                 let observer = player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main) {  time in
@@ -167,7 +239,7 @@ struct VideoEditingView: View {
     }
 }
 
-// Add a function to clean up when the view disappears
+// MARK: - View Lifecycle Extension
 extension VideoEditingView {
     /// Creates a coordinator to handle view lifecycle events
     func makeCoordinator() -> Coordinator {
