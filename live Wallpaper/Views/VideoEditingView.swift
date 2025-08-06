@@ -127,6 +127,7 @@ struct VideoEditingView: View {
                     startTime: startTime,
                     endTime: endTime,
                     canProcess: canProcess,
+                    trimmedVideoURL: trimmedVideoURL,
                     onCreateWallpaper: onCreateLiveWallpaper,
                     onPreview: playSelection
                 )

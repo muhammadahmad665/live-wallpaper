@@ -19,6 +19,7 @@ struct VideoProcessingActions: View {
     let startTime: Double
     let endTime: Double
     let canProcess: Bool
+    let trimmedVideoURL: URL? // Add this parameter to track if video has been processed
     let onCreateWallpaper: () -> Void
     let onPreview: () -> Void
     
@@ -49,17 +50,48 @@ struct VideoProcessingActions: View {
         
         if isProcessing {
             return "Creating Live Wallpaper..."
-        } else if !isSelectionValid {
-            if duration <= 0 {
-                return "Select a video segment to continue"
-            } else if finalDuration > 5.0 {
-                return "Final duration (\(String(format: "%.1f", finalDuration))s) too long. Max 5 seconds."
+        } else if trimmedVideoURL == nil {
+            if !isSelectionValid {
+                if duration <= 0 {
+                    return "Please trim your video first by adjusting the sliders"
+                } else if finalDuration > 5.0 {
+                    return "Trim video to \(String(format: "%.1f", 5.0 * speedMultiplier))s or increase speed"
+                } else {
+                    return "Please trim your video first by adjusting the sliders"
+                }
             } else {
-                return "Select a video segment to continue"
+                return "Selection ready! Tap 'Trim Video First' to process"
             }
         } else {
-            return "Ready! Final duration: \(String(format: "%.1f", finalDuration))s"
+            return "Video processed! Ready to create Live Wallpaper (\(String(format: "%.1f", finalDuration))s final)"
         }
+    }
+    
+    /// Gets the appropriate button title
+    private var buttonTitle: String {
+        // If video hasn't been trimmed/processed yet, show "Trim Video First"
+        if trimmedVideoURL == nil {
+            return "Trim Video First"
+        } else {
+            return "Create Live Wallpaper"
+        }
+    }
+    
+    /// Determines if the button should be enabled
+    private var canProcessOrCreate: Bool {
+        if trimmedVideoURL == nil {
+            // For trimming step: need valid selection
+            return isSelectionValid
+        } else {
+            // For Live Wallpaper creation step: already processed, so always ready
+            return true
+        }
+    }
+    
+    /// Helper to get video duration
+    private var videoDuration: Double? {
+        guard let asset = asset else { return nil }
+        return asset.duration.seconds
     }
     
     var body: some View {
@@ -111,7 +143,7 @@ struct VideoProcessingActions: View {
                             .font(.title3)
                     }
                     
-                    Text(isProcessing ? "Creating..." : "Create Live Wallpaper")
+                    Text(isProcessing ? "Creating..." : buttonTitle)
                         .font(.headline)
                         .fontWeight(.semibold)
                 }
@@ -119,7 +151,7 @@ struct VideoProcessingActions: View {
                 .frame(height: 56)
                 .background(
                     Group {
-                        if isSelectionValid && !isProcessing {
+                        if canProcessOrCreate && !isProcessing {
                             Color.blue
                         } else {
                             Color.gray
@@ -130,8 +162,8 @@ struct VideoProcessingActions: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
-            .disabled(!isSelectionValid || isProcessing)
-            .animation(.easeInOut(duration: 0.2), value: isSelectionValid)
+            .disabled(!canProcessOrCreate || isProcessing)
+            .animation(.easeInOut(duration: 0.2), value: canProcessOrCreate)
             .animation(.easeInOut(duration: 0.2), value: isProcessing)
             
             // Preview button (simplified)
@@ -170,6 +202,7 @@ struct VideoProcessingActions: View {
         startTime: 0,
         endTime: 3,
         canProcess: true,
+        trimmedVideoURL: nil, // No trimmed video yet
         onCreateWallpaper: {},
         onPreview: {}
     )
