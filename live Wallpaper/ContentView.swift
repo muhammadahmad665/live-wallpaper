@@ -55,8 +55,6 @@ struct ContentView: View {
     /// Video editing interface for selected video
     private func videoEditingInterface(for selectedVideoURL: URL) -> some View {
         VStack(spacing: 0) {
-            progressIndicator
-            
             VideoEditingView(
                 videoURL: selectedVideoURL,
                 startTime: $viewModel.startTime,
@@ -68,10 +66,15 @@ struct ContentView: View {
                 onProcessVideo: viewModel.processVideo,
                 onSaveVideo: viewModel.saveToPhotoLibrary,
                 onCreateLiveWallpaper: {
+                    print("🎬 onCreateLiveWallpaper called!")
+                    print("🎬 trimmedVideoURL exists: \(viewModel.trimmedVideoURL != nil)")
+                    
                     // Unified action that handles both processing and saving
                     if viewModel.trimmedVideoURL != nil {
+                        print("🎬 Video already processed, saving to library...")
                         viewModel.saveToPhotoLibrary()
                     } else {
+                        print("🎬 Video not processed yet, processing first...")
                         viewModel.processVideo()
                     }
                 }
@@ -79,40 +82,6 @@ struct ContentView: View {
             
             bottomActionBar
         }
-    }
-    
-    /// Progress indicator showing workflow steps
-    private var progressIndicator: some View {
-        HStack {
-            progressStep(title: "Video Selected", isCompleted: true)
-            progressConnector
-            progressStep(title: "Processed", isCompleted: viewModel.trimmedVideoURL != nil)
-            progressConnector
-            progressStep(title: "Saved", isCompleted: viewModel.showSuccessMessage)
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.bottom)
-    }
-    
-    /// Individual progress step
-    private func progressStep(title: String, isCompleted: Bool) -> some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(isCompleted ? Color.green : Color.gray.opacity(0.3))
-                .frame(width: 8, height: 8)
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-    }
-    
-    /// Progress connector line
-    private var progressConnector: some View {
-        Rectangle()
-            .fill(.gray.opacity(0.3))
-            .frame(height: 1)
-            .frame(maxWidth: 40)
     }
     
     /// Bottom action bar
@@ -244,7 +213,7 @@ struct ContentView: View {
     private var loadingOverlay: some View {
         Group {
             if viewModel.isProcessing {
-                LoadingOverlay(message: "Creating your Live Wallpaper")
+                LoadingOverlay(message: "Creating Live Wallpaper")
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }

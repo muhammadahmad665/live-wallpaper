@@ -10,7 +10,6 @@ import PhotosUI
 import AVKit
 import UniformTypeIdentifiers
 import UIKit
-import Photos
 
 /// ViewModel responsible for handling video selection, processing, and saving as Live Photos
 /// Acts as the central coordinator between UI and underlying video processing logic
@@ -102,6 +101,10 @@ class WallpaperViewModel: ObservableObject {
     func processVideo() {
         guard let selectedVideoURL = selectedVideoURL else { return }
         
+        print("🎬 Starting video processing...")
+        print("🎬 Settings - Start: \(startTime)s, End: \(endTime)s, Speed: \(speedMultiplier)x")
+        print("🎬 Duration: \(endTime - startTime)s -> Final: \((endTime - startTime) / speedMultiplier)s")
+        
         // Haptic feedback for processing start
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
         impactFeedback.impactOccurred()
@@ -117,144 +120,21 @@ class WallpaperViewModel: ObservableObject {
             
             switch result {
             case .success(let trimmedURL):
+                print("🎬 ✅ Video processing completed: \(trimmedURL.lastPathComponent)")
                 self.trimmedVideoURL = trimmedURL
                 DispatchQueue.main.async {
                     self.isProcessing = false
-                    self.showSuccessMessage = true
+                    // Don't show success message here - only after Live Photo is saved
                     
                     // Success haptic feedback
                     let successFeedback = UINotificationFeedbackGenerator()
                     successFeedback.notificationOccurred(.success)
                 }
             case .failure(let error):
+                print("🎬 ❌ Video processing failed: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.isProcessing = false
                     self.errorMessage = error.localizedDescription
-                    
-                    // Error haptic feedback
-                    let errorFeedback = UINotificationFeedbackGenerator()
-                    errorFeedback.notificationOccurred(.error)
-                }
-            }
-        }
-    }
-    
-    /// Creates a video wallpaper by processing the video and saving it to the photo library
-    /// This is the complete workflow that users expect when clicking "Create Video Wallpaper"
-    func createLiveWallpaper() {
-        guard let selectedVideoURL = selectedVideoURL else { return }
-        
-        // Haptic feedback for processing start
-        let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
-        impactFeedback.impactOccurred()
-        
-        isProcessing = true
-        
-        // Add a timeout to prevent infinite hanging
-        let timeoutTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
-        timeoutTimer.schedule(deadline: .now() + 60) // 60 second timeout
-        timeoutTimer.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            
-            if self.isProcessing {
-                self.isProcessing = false
-                self.errorMessage = "Video wallpaper creation timed out. Please try again with a shorter video clip."
-                
-                let errorFeedback = UINotificationFeedbackGenerator()
-                errorFeedback.notificationOccurred(.error)
-            }
-            timeoutTimer.cancel()
-        }
-        timeoutTimer.resume()
-        
-        // Step 1: Trim and speed up the video
-        VideoProcessor.trimAndSpeedUpVideo(
-            at: selectedVideoURL,
-            from: startTime,
-            to: endTime,
-            speedMultiplier: speedMultiplier
-        ) { [weak self] result in
-            guard let self = self else { 
-                timeoutTimer.cancel()
-                return 
-            }
-            
-            switch result {
-            case .success(let trimmedURL):
-                // Step 2: Save the trimmed video as a Live Photo
-                self.trimmedVideoURL = trimmedURL
-                
-                // Request photo library permissions first
-                PHPhotoLibrary.requestAuthorization(for: .addOnly) { [weak self] status in
-                    guard let self = self else { 
-                        timeoutTimer.cancel()
-                        return 
-                    }
-                    
-                    DispatchQueue.main.async {
-                        switch status {
-                        case .authorized, .limited:
-                            // Permission granted, proceed with saving
-                            VideoProcessor.saveAsLivePhoto(from: trimmedURL) { [weak self] saveResult in
-                                guard let self = self else { 
-                                    timeoutTimer.cancel()
-                                    return 
-                                }
-                                
-                                DispatchQueue.main.async {
-                                    timeoutTimer.cancel()
-                                    self.isProcessing = false
-                                    
-                                    switch saveResult {
-                                    case .success:
-                                        self.showSuccessMessage = true
-                                        
-                                        // Success haptic feedback
-                                        let successFeedback = UINotificationFeedbackGenerator()
-                                        successFeedback.notificationOccurred(.success)
-                                        
-                                    case .failure(let error):
-                                        self.errorMessage = "Failed to save video wallpaper: \(error.localizedDescription)"
-                                        
-                                        // Error haptic feedback
-                                        let errorFeedback = UINotificationFeedbackGenerator()
-                                        errorFeedback.notificationOccurred(.error)
-                                    }
-                                }
-                            }
-                            
-                        case .denied, .restricted:
-                            timeoutTimer.cancel()
-                            self.isProcessing = false
-                            self.errorMessage = "Photo library access is required to save video wallpapers. Please grant permission in Settings."
-                            
-                            let errorFeedback = UINotificationFeedbackGenerator()
-                            errorFeedback.notificationOccurred(.error)
-                            
-                        case .notDetermined:
-                            timeoutTimer.cancel()
-                            self.isProcessing = false
-                            self.errorMessage = "Photo library permission not determined. Please try again."
-                            
-                            let errorFeedback = UINotificationFeedbackGenerator()
-                            errorFeedback.notificationOccurred(.error)
-                            
-                        @unknown default:
-                            timeoutTimer.cancel()
-                            self.isProcessing = false
-                            self.errorMessage = "Unknown photo library permission status. Please try again."
-                            
-                            let errorFeedback = UINotificationFeedbackGenerator()
-                            errorFeedback.notificationOccurred(.error)
-                        }
-                    }
-                }
-                
-            case .failure(let error):
-                DispatchQueue.main.async {
-                    timeoutTimer.cancel()
-                    self.isProcessing = false
-                    self.errorMessage = "Failed to process video: \(error.localizedDescription)"
                     
                     // Error haptic feedback
                     let errorFeedback = UINotificationFeedbackGenerator()
@@ -268,9 +148,15 @@ class WallpaperViewModel: ObservableObject {
     /// Uses VideoProcessor.saveAsLivePhoto to handle the conversion process
     func saveToPhotoLibrary() {
         guard let trimmedVideoURL = trimmedVideoURL else {
+            print("❌ No processed video available to save")
             errorMessage = "No processed video available to save"
             return
         }
+        
+        print("🎬 Starting Live Photo save process...")
+        print("🎬 Video URL: \(trimmedVideoURL.lastPathComponent)")
+        print("🎬 Original settings - Start: \(startTime)s, End: \(endTime)s, Speed: \(speedMultiplier)x")
+        print("🎬 Duration: \(endTime - startTime)s -> Final: \((endTime - startTime) / speedMultiplier)s")
         
         // Haptic feedback for save start
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -287,6 +173,7 @@ class WallpaperViewModel: ObservableObject {
                 
                 switch result {
                 case .success:
+                    print("🎬 ✅ Live Photo saved successfully!")
                     self.showSuccessMessage = true
                     
                     // Success haptic feedback
@@ -294,6 +181,7 @@ class WallpaperViewModel: ObservableObject {
                     successFeedback.notificationOccurred(.success)
                     
                 case .failure(let error):
+                    print("🎬 ❌ Live Photo save failed: \(error.localizedDescription)")
                     self.errorMessage = error.localizedDescription
                     
                     // Error haptic feedback

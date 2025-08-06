@@ -24,178 +24,139 @@ struct VideoProcessingActions: View {
     
     /// Computed property to check if the current selection is suitable for processing
     private var isSelectionValid: Bool {
-        guard let asset = asset else { return false }
+        guard let asset = asset else { 
+            print("🔍 isSelectionValid: false - no asset")
+            return false 
+        }
+        let duration = endTime - startTime
+        // Fixed: Higher speed = shorter final duration, so divide by speedMultiplier
+        let finalDuration = duration / speedMultiplier
+        let isValid = duration > 0 && finalDuration <= 5.0
+        
+        print("🔍 isSelectionValid check:")
+        print("🔍   Duration: \(duration)s")
+        print("🔍   Speed: \(speedMultiplier)x") 
+        print("🔍   Final Duration: \(finalDuration)s")
+        print("🔍   Valid: \(isValid) (duration > 0: \(duration > 0), finalDuration <= 5.0: \(finalDuration <= 5.0))")
+        
+        return isValid
+    }
+    
+    /// Gets a simple status message
+    private var statusMessage: String {
         let duration = endTime - startTime
         let finalDuration = duration / speedMultiplier
-        return duration > 0 && finalDuration <= 5.0
-    }
-    
-    /// Gets a status message based on current state
-    private var statusMessage: String {
+        
         if isProcessing {
-            return "Creating your Live Wallpaper..."
+            return "Creating Live Wallpaper..."
         } else if !isSelectionValid {
-            let duration = endTime - startTime
-            let finalDuration = duration / speedMultiplier
-            return "Adjust your selection: Duration \(String(format: "%.1f", duration))s → \(String(format: "%.1f", finalDuration))s (max 5.0s)"
+            if duration <= 0 {
+                return "Select a video segment to continue"
+            } else if finalDuration > 5.0 {
+                return "Final duration (\(String(format: "%.1f", finalDuration))s) too long. Max 5 seconds."
+            } else {
+                return "Select a video segment to continue"
+            }
         } else {
-            return "Ready to create your Live Wallpaper!"
-        }
-    }
-    
-    /// Gets the appropriate status color
-    private var statusColor: Color {
-        if isProcessing {
-            return .orange
-        } else if !isSelectionValid {
-            return .red
-        } else {
-            return .green
+            return "Ready! Final duration: \(String(format: "%.1f", finalDuration))s"
         }
     }
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Status indicator
-            HStack {
-                Circle()
-                    .fill(statusColor)
-                    .frame(width: 8, height: 8)
-                    .opacity(isProcessing ? 0.8 : 1.0)
-                    .scaleEffect(isProcessing ? 1.2 : 1.0)
-                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isProcessing)
+        VStack(spacing: 16) {
+            // Debug info to see what's happening
+            VStack(spacing: 4) {
+                Text("Debug Info:")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
                 
-                Text(statusMessage)
-                    .font(.subheadline)
-                    .foregroundColor(statusColor)
-                    .fontWeight(.medium)
+                Text("Duration: \(String(format: "%.1f", endTime - startTime))s at \(String(format: "%.1f", speedMultiplier))x = \(String(format: "%.1f", (endTime - startTime) / speedMultiplier))s")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
                 
-                Spacer()
-                
-                if isProcessing {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
+                Text("Valid: \(isSelectionValid ? "✅" : "❌") | CanProcess: \(canProcess ? "✅" : "❌") | Processing: \(isProcessing ? "🔄" : "⏸️")")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
             .padding(.horizontal)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
             
-            // Action buttons
-            VStack(spacing: 12) {
-                // Preview button
-                Button(action: {
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                    impactFeedback.impactOccurred()
-                    onPreview()
-                }) {
-                    HStack {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title2)
-                        Text("Preview at \(speedMultiplier, specifier: "%.1f")× Speed")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.blue.opacity(0.8), Color.blue]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .disabled(asset == nil || isProcessing)
-                .opacity((asset == nil || isProcessing) ? 0.6 : 1.0)
+            // Simple status message
+            Text(statusMessage)
+                .font(.subheadline)
+                .foregroundColor(isSelectionValid ? .green : .orange)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            
+            // Main action button
+            Button(action: {
+                print("🎬 Create Live Wallpaper button tapped!")
+                print("🎬 isSelectionValid: \(isSelectionValid)")
+                print("🎬 canProcess: \(canProcess)")
+                print("🎬 isProcessing: \(isProcessing)")
+                print("🎬 Duration: \(endTime - startTime)s -> \((endTime - startTime) / speedMultiplier)s")
                 
-                // Create wallpaper button
-                Button(action: {
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .heavy)
-                    impactFeedback.impactOccurred()
-                    onCreateWallpaper()
-                }) {
-                    HStack {
-                        if isProcessing {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.8)
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+                onCreateWallpaper()
+            }) {
+                HStack(spacing: 12) {
+                    if isProcessing {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.9)
+                    } else {
+                        Image(systemName: "camera.fill")
+                            .font(.title3)
+                    }
+                    
+                    Text(isProcessing ? "Creating..." : "Create Live Wallpaper")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
+                .background(
+                    Group {
+                        if isSelectionValid && !isProcessing {
+                            Color.blue
                         } else {
-                            Image(systemName: "wand.and.stars")
-                                .font(.title2)
+                            Color.gray
                         }
-                        Text(isProcessing ? "Creating..." : "Create Live Wallpaper")
-                            .font(.headline)
-                            .fontWeight(.semibold)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [Color.purple.opacity(0.8), Color.purple]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .shadow(color: .purple.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .disabled(!canProcess || isProcessing || !isSelectionValid)
-                .opacity((!canProcess || isProcessing || !isSelectionValid) ? 0.6 : 1.0)
-                
-                // Debug info for troubleshooting
-                if !canProcess || !isSelectionValid {
-                    Text("Debug: canProcess=\(canProcess), isSelectionValid=\(isSelectionValid), duration=\(String(format: "%.1f", endTime - startTime))")
-                        .font(.caption2)
-                        .foregroundColor(.red)
-                        .padding(.horizontal)
-                }
+                )
+                .foregroundColor(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
-            .padding(.horizontal)
+            .disabled(!isSelectionValid || isProcessing)
+            .animation(.easeInOut(duration: 0.2), value: isSelectionValid)
+            .animation(.easeInOut(duration: 0.2), value: isProcessing)
             
-            // Tips for better results
-            if !isProcessing {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Pro Tips", systemImage: "lightbulb.fill")
+            // Preview button (simplified)
+            Button(action: {
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+                onPreview()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: "play.fill")
+                        .font(.callout)
+                    Text("Preview Selection")
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.orange)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        tipItem("Choose moments with smooth motion for best results")
-                        tipItem("Higher speeds create more dynamic wallpapers")
-                        tipItem("Keep final duration under 5 seconds for Live Photos")
-                        tipItem("Preview before creating to ensure quality")
-                    }
                 }
-                .padding()
-                .background(.orange.opacity(0.05))
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(Color.blue.opacity(0.1))
+                .foregroundColor(.blue)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal)
             }
+            .disabled(asset == nil || isProcessing)
+            .opacity((asset == nil || isProcessing) ? 0.5 : 1.0)
         }
-        .alert("Processing Status", isPresented: $showAlert) {
-            Button("OK") { }
-        } message: {
-            Text(alertMessage)
-        }
-    }
-    
-    /// Creates a tip item with bullet point styling
-    private func tipItem(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle()
-                .fill(Color.orange.opacity(0.6))
-                .frame(width: 4, height: 4)
-                .padding(.top, 6)
-            
-            Text(text)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.leading)
-        }
+        .padding(.horizontal)
     }
 }
 

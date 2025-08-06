@@ -49,6 +49,7 @@ struct VideoEditingView: View {
     /// Computed property to check if processing can be performed
     private var canProcess: Bool {
         let duration = endTime - startTime
+        // Fixed: Higher speed = shorter final duration
         let finalDuration = duration / speedMultiplier
         return duration > 0 && finalDuration <= 5.0
     }
@@ -104,7 +105,10 @@ struct VideoEditingView: View {
                     speedMultiplier: $speedMultiplier,
                     startTime: startTime,
                     endTime: endTime,
-                    onSpeedChange: { _ in
+                    onSpeedChange: { newSpeed in
+                        // Auto-adjust selection range when speed changes
+                        autoAdjustSelectionForSpeed(newSpeed)
+                        
                         // Update player rate in real-time and refresh preview
                         updatePlayerRate()
                         if player?.timeControlStatus == .playing {
@@ -235,6 +239,77 @@ struct VideoEditingView: View {
         if let player = player, let timeObserverToken = timeObserverToken {
             player.removeTimeObserver(timeObserverToken)
             self.timeObserverToken = nil
+        }
+    }
+    
+    /// Automatically adjusts the selection range when speed changes to maximize video usage within 5-second limit
+    private func autoAdjustSelectionForSpeed(_ newSpeed: Double) {
+        let currentDuration = endTime - startTime
+        let newFinalDuration = currentDuration / newSpeed
+        
+        print("🔧 Speed changed to \(newSpeed)x: Current duration \(currentDuration)s -> Final duration \(newFinalDuration)s")
+        
+        // Calculate the maximum original duration we can select at this speed to get 5 seconds final
+        let maxOriginalDuration = 5.0 * newSpeed // At 2x speed, we can select 10 seconds to get 5 seconds final
+        let availableDuration = min(maxOriginalDuration, videoDuration)
+        
+        print("🔧 Max original duration at \(newSpeed)x speed: \(maxOriginalDuration)s, available: \(availableDuration)s")
+        
+        // Check if current selection is invalid (too long for the new speed)
+        if newFinalDuration > 5.0 {
+            print("🔧 Current selection too long for new speed! Must shrink from \(currentDuration)s to max \(availableDuration)s")
+            
+            // Shrink selection while keeping it centered if possible
+            let currentCenter = (startTime + endTime) / 2
+            let halfDuration = availableDuration / 2
+            
+            var newStartTime = max(0, currentCenter - halfDuration)
+            var newEndTime = min(videoDuration, currentCenter + halfDuration)
+            
+            // Adjust if selection goes beyond video bounds
+            if newEndTime > videoDuration {
+                newEndTime = videoDuration
+                newStartTime = max(0, videoDuration - availableDuration)
+            } else if newStartTime < 0 {
+                newStartTime = 0
+                newEndTime = min(videoDuration, availableDuration)
+            }
+            
+            print("🔧 Shrinking selection: \(startTime)s-\(endTime)s -> \(newStartTime)s-\(newEndTime)s")
+            startTime = newStartTime
+            endTime = newEndTime
+            
+            let finalDuration = (newEndTime - newStartTime) / newSpeed
+            print("🔧 Final result after shrinking: \(newEndTime - newStartTime)s at \(newSpeed)x = \(finalDuration)s final")
+            
+        } else if availableDuration > currentDuration + 0.1 { // If we can use more video, expand
+            print("🔧 Can expand selection to use more video")
+            
+            // Try to keep the selection centered, but adjust if needed
+            let currentCenter = (startTime + endTime) / 2
+            let halfDuration = availableDuration / 2
+            
+            var newStartTime = max(0, currentCenter - halfDuration)
+            var newEndTime = min(videoDuration, currentCenter + halfDuration)
+            
+            // Adjust if selection goes beyond video bounds
+            if newEndTime > videoDuration {
+                newEndTime = videoDuration
+                newStartTime = max(0, videoDuration - availableDuration)
+            } else if newStartTime < 0 {
+                newStartTime = 0
+                newEndTime = min(videoDuration, availableDuration)
+            }
+            
+            print("🔧 Expanding selection: \(startTime)s-\(endTime)s -> \(newStartTime)s-\(newEndTime)s")
+            startTime = newStartTime
+            endTime = newEndTime
+            
+            let finalDuration = (newEndTime - newStartTime) / newSpeed
+            print("🔧 Final result after expanding: \(newEndTime - newStartTime)s at \(newSpeed)x = \(finalDuration)s final")
+            
+        } else {
+            print("🔧 Current selection is optimal for new speed, keeping it")
         }
     }
 }

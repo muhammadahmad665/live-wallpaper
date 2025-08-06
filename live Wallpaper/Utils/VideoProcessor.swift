@@ -217,17 +217,38 @@ class VideoProcessor {
     ///   - videoURL: URL of the source video
     ///   - completion: Completion handler with Result containing success status
     static func saveAsLivePhoto(from videoURL: URL, completion: @escaping (Result<Void, Error>) -> Void) {
-        // Use the LivePhotoUtil Objective-C class for Live Photo creation
-        LivePhotoUtil.convertVideo(videoURL.path) { success, message in
-            DispatchQueue.main.async {
-                if success {
-                    completion(.success(()))
-                } else {
-                    let error = NSError(
-                        domain: "VideoProcessor", 
-                        code: -1, 
-                        userInfo: [NSLocalizedDescriptionKey: message ?? "Failed to save as Live Photo"]
-                    )
+        print("📱 Starting Live Photo creation from: \(videoURL.lastPathComponent)")
+        
+        // Get video info first
+        let asset = AVAsset(url: videoURL)
+        Task {
+            do {
+                let duration = try await asset.load(.duration)
+                let durationSeconds = CMTimeGetSeconds(duration)
+                print("📱 Video duration: \(durationSeconds) seconds")
+                
+                // Use the LivePhotoUtil Objective-C class for Live Photo creation
+                await MainActor.run {
+                    LivePhotoUtil.convertVideo(videoURL.path) { success, message in
+                        DispatchQueue.main.async {
+                            if success {
+                                print("📱 ✅ Live Photo created successfully")
+                                completion(.success(()))
+                            } else {
+                                print("📱 ❌ Live Photo creation failed: \(message ?? "Unknown error")")
+                                let error = NSError(
+                                    domain: "VideoProcessor", 
+                                    code: -1, 
+                                    userInfo: [NSLocalizedDescriptionKey: message ?? "Failed to save as Live Photo"]
+                                )
+                                completion(.failure(error))
+                            }
+                        }
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    print("📱 ❌ Failed to load video info: \(error)")
                     completion(.failure(error))
                 }
             }
