@@ -2,6 +2,21 @@
 
 A sophisticated iOS application that transforms ordinary videos into stunning Live Photos optimized for use as dynamic wallpapers on iPhone. Built with modern SwiftUI and leveraging advanced iOS frameworks, this app provides a complete workflow from video selection to Live Photo creation with professional-grade processing capabilities.
 
+## 📱 Production Application
+
+This open-source project is actively used in **Wallo**, a production application available on the App Store.
+
+If you'd like to experience the complete product and see this code in action, you can download it here:
+
+**App Store:** https://apps.apple.com/pk/app/wallo-live-wallpapers-hd-4k/id6753956906
+
+If you enjoy the app or find this repository helpful, please consider supporting the project by:
+
+- ⭐ Leaving a review on the App Store.
+- 💎 Purchasing a premium subscription.
+
+Your support directly helps with ongoing development, maintenance, and adding new features.
+
 ## Screenshots
 
 <p align="center">
